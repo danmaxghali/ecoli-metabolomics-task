@@ -121,3 +121,11 @@ ipa_input <- data.frame(
 #Convert to .csv
 write.csv(filtered_matrix, "feature_matrix_1000.csv")
 write.csv(ipa_input, "ipa_input.csv")
+
+#Combine filtered_matrix and feature_info into an output ready for ipaPy2
+rownames(ipa_input) <- ipa_input$ids
+df_ipa <- cbind(ipa_input[, c("ids", "mzs", "RTs")], filtered_matrix)
+
+#Convert to .csv
+write.csv(df_ipa, "df_ipa.csv")
+
