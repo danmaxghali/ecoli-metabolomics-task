@@ -1,8 +1,10 @@
-data/raw/
+data/
+results/
 __pycache__/
 .ipynb_checkpoints/
 .Rhistory
 .RData
+.RDataTmp
 .Rproj.user
 .positai
 venv/

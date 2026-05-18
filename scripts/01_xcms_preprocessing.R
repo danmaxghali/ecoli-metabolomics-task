@@ -110,22 +110,20 @@ feature_info <- feature_info[top_features, ]
 
 #Prepare output for ipa processing
 
-#Create ipa_input
-ipa_input <- data.frame(
+#Create feature_info_reduced
+feature_info_reduced <- data.frame(
   ids = rownames(feature_info),
   mzs = feature_info$mzmed,
   RTs = feature_info$rtmed,
   Int = rowMeans(filtered_matrix, na.rm = TRUE)
 )
 
-#Convert to .csv
-write.csv(filtered_matrix, "feature_matrix_1000.csv")
-write.csv(ipa_input, "ipa_input.csv")
-
 #Combine filtered_matrix and feature_info into an output ready for ipaPy2
-rownames(ipa_input) <- ipa_input$ids
-df_ipa <- cbind(ipa_input[, c("ids", "mzs", "RTs")], filtered_matrix)
+rownames(feature_info_reduced) <- feature_info_reduced$ids
+xcms_output <- cbind(feature_info_reduced[, c("ids", "mzs", "RTs")], filtered_matrix)
 
 #Convert to .csv
-write.csv(df_ipa, "df_ipa.csv")
+write.csv(xcms_output,
+          file.path("results", "xcms_output.csv"),
+          row.names = FALSE)
 

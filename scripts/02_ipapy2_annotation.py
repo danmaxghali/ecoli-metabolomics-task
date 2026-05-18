@@ -1,7 +1,5 @@
 import pandas as pd
-ipa_input = pd.read_csv("../data/ipa_input.csv")
-
-print(dfpos.head())
+xcms_output = pd.read_csv("../results/xcms_output.csv")
 
 from ipaPy2 import ipa
-dfpos = ipa.clusterFeatures(ipa_input)
+dfpos = ipa.clusterFeatures(xcms_output)
