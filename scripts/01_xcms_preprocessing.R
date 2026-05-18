@@ -127,3 +127,7 @@ write.csv(xcms_output,
           file.path("results", "xcms_output.csv"),
           row.names = FALSE)
 
+#Also output filtered matrix for stats analysis
+write.csv(filtered_matrix, 
+          file.path("results", "filtered_matrix"))
+
