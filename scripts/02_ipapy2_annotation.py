@@ -23,7 +23,7 @@ annotations_ms1 = ipa.MS1annotation(clustered_features,allAddsPos,ppm=3,ncores=2
 #Compute prosterior probabilities of the annotations considering the adducts connections
 annotations_gibbs = ipa.Gibbs_sampler_add(clustered_features,annotations_ms1,noits=1000,delta_add=0.1, all_out=False)
 
-#Output baselineannotations as pickle file
+#Output baseline_annotations as pickle file
 import pickle
 with open("../results/baseline_annotation/baseline_annotations.pkl", "wb") as f:
     pickle.dump(annotations_ms1, f)
