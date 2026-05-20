@@ -4,7 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 .Rhistory
 .RData
-.RDataTmp
+.RDataTmp*
 .Rproj.user
 .positai
 venv/
