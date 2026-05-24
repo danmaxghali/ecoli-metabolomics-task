@@ -1,0 +1,128 @@
+#Load clustered features and annotations
+import pandas as pd
+clustered_features = pd.read_csv("../results/baseline_annotation/clustered_features.csv")
+ecmdb_annotations = pd.read_pickle("../results/ecmdb_annotations.pkl")
+
+import requests
+import re
+from itertools import combinations
+from tqdm import tqdm
+
+url = "https://rest.kegg.jp/list/pathway/ec"
+response = requests.get(url)
+
+pathways = [
+    line.split()[0].replace("path:", "")
+    for line in response.text.strip().split("\n")
+]
+
+print("Number of pathways:", len(pathways))
+
+def extract_compounds_kegg(text):
+    compounds = []
+    capture = False
+
+    for line in text.split("\n"):
+        if line.startswith("COMPOUND"):
+            capture = True
+            match = re.search(r"(C\d{5})", line)
+            if match:
+                compounds.append(match.group(1))
+            continue
+
+        if capture:
+            if re.match(r"^[A-Z_]+", line.strip()) and not line.startswith(" "):
+                break
+            match = re.search(r"(C\d{5})", line)
+            if match:
+                compounds.append(match.group(1))
+
+    return compounds
+
+pathway_to_compounds = {}
+
+# STEP 1: build pathway → compounds
+for pid in tqdm(pathways):
+
+    url = f"https://rest.kegg.jp/get/{pid}"
+    response = requests.get(url)
+
+    compounds = extract_compounds_kegg(response.text)
+
+    pathway_to_compounds[pid] = set(compounds)
+
+annotation_compounds = set()
+for df in ecmdb_annotations.values():
+    annotation_compounds.update(df["id"].dropna().unique())
+
+
+# STEP 2: build BIO edges (GLOBAL SET)
+bio_edges = set()
+
+for pid, compounds in pathway_to_compounds.items():
+
+    compounds = compounds & annotation_compounds
+
+    for a, b in combinations(compounds, 2):
+        bio_edges.add((a, b))
+
+
+# STEP 3: convert to dataframe (ONLY ONCE)
+Bio = pd.DataFrame(list(bio_edges), columns=["0", "1"])
+
+Bio.to_csv("../results/bio_connections.csv", index=False)
+
+print(Bio.head())
+print("Total biochemical connections:", len(Bio))
+
+import copy
+biochemical_annotations = copy.deepcopy(ecmdb_annotations)
+ipa.Gibbs_sampler_bio(clustered_features, biochemical_annotations, Bio, noits=2000, delta_bio=0.5)
+
+biochemical_annotations = ecmdb_annotations.copy()
+#Output biochemical_annotations as pickle file
+import pickle
+with open("../results/biochemical_annotations.pkl", "wb") as f:
+    pickle.dump(biochemical_annotations, f)
+
+
+key = list(ecmdb_annotations.keys())[0]
+df_old = ecmdb_annotations[key]
+df_new = biochemical_annotations[key]
+df = df_old[["id", "post"]].merge(
+    df_new[["id", "post"]],
+    on="id",
+    suffixes=("_old", "_bio")
+)
+df["diff"] = df["post_bio"] - df["post_old"]
+print(df.sort_values("diff", ascending=False).head(10))
+
+
+
+# Check if posteriors actually shifted at all
+import numpy as np
+
+changes = []
+for fid in ecmdb_annotations:
+    before = ecmdb_annotations[fid]["post"].values
+    after = biochemical_annotations[fid]["post"].values
+    changes.append(np.mean(np.abs(before - after)))
+
+print(f"Mean posterior shift: {np.mean(changes):.6f}")
+print(f"Max posterior shift: {np.max(changes):.6f}")
+print(f"Features with any change: {sum(c > 1e-6 for c in changes)}/{len(changes)}")
+
+# Are the Bio IDs in the same format as annotation df "id" column?
+sample_fid = next(iter(ecmdb_annotations))
+print(ecmdb_annotations[sample_fid][["id", "post"]].head())
+print("\nSample Bio IDs:", list(Bio["0"])[:5])
+
+biochemical_annotations_add = copy.deepcopy(biochemical_annotations)
+ipa.Gibbs_sampler_bio_add(clustered_features, biochemical_annotations_add, Bio, noits=2000, delta_bio=0.5, delta_add=0.1)
+
+#Output baseline_annotations as pickle file
+with open("../results/biochemical_annotations_add.pkl", "wb") as f:
+    pickle.dump(biochemical_annotations_add, f)
+
+first_key = list(biochemical_annotations_add.keys())[0]
+print(biochemical_annotations_add[first_key].head())
