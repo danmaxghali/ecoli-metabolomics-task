@@ -13,10 +13,6 @@ bio <- grep("STDMIX", colnames(filtered_matrix), value = TRUE)
 # Extract group labels from biological sample names
 groups <- gsub(".*STDMIX_([A-D]1)_.*", "\\1", bio)
 
-# cat("QC samples:", length(qc), "\n")
-# cat("Biological samples:", length(bio), "\n")
-# cat("Groups:", unique(groups), "\n")
-
 # Extract just the intensity values as a numeric matrix
 qc_matrix <- as.matrix(filtered_matrix[, qc])
 bio_matrix <- as.matrix(filtered_matrix[, bio])
@@ -100,6 +96,21 @@ barplot(var_explained[1:20],
         main = "Scree Plot",
         col = "steelblue",
         las = 2)
+
+dev.off()
+
+#Produce a PC scree plot without title and axis to fit on the presentation
+png(file.path(project_root, "results", "statistical_analysis", "pcs_presentation.png"),
+    width = 800,
+    height = 600)
+
+barplot(var_explained[1:20],
+        names.arg = paste0("PC", 1:20),
+        ylim = c(0, 20),
+        col = "steelblue",
+        las = 2,
+        cex.names = 2.0,
+        cex.axis = 2.0)
 
 dev.off()
 
@@ -281,3 +292,4 @@ pheatmap(sig_matrix_scaled,
          filename = file.path(project_root, "results", "statistical_analysis", "heatmap.png"),
          width = 8,
          height = 8) 
+

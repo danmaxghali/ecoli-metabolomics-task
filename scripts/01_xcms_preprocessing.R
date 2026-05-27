@@ -99,6 +99,35 @@ log_intensity <- log10(mean_intensity + 1)
 #Make a combined score
 score <- feature_detection_rate * log_intensity
 
+# Sort scores descending
+sorted_scores <- sort(score, decreasing = TRUE)
+
+# Plot
+png(file.path(project_root, "results", "stats", "feature_selection_score.png"),
+    width = 800, height = 600)
+
+plot(sorted_scores,
+     type = "l",
+     xlab = "Feature rank",
+     ylab = "Score (detection rate × log intensity)",
+     main = "Feature Selection Score Distribution",
+     col = "#1B9AAA",
+     lwd = 2)
+
+# Add vertical line at rank 1000
+abline(v = 1000, col = "#F4A261", lty = 2, lwd = 2)
+
+# Add threshold score value
+threshold_score <- sorted_scores[1000]
+abline(h = threshold_score, col = "#F4A261", lty = 3, lwd = 1.5)
+
+legend("topright", 
+       legend = c("Feature scores", "Top 1000 cutoff"),
+       col = c("#1B9AAA", "#F4A261"),
+       lty = c(1, 2), lwd = 2)
+
+dev.off()
+
 #Choose top 1000 features
 top_features <- order(score, decreasing = TRUE)[1:min(1000, length(score))]
 
