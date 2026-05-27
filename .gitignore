@@ -7,4 +7,4 @@ __pycache__/
 .RDataTmp*
 .Rproj.user
 .positai
-venv/
+venv*

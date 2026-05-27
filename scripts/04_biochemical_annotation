@@ -124,5 +124,6 @@ ipa.Gibbs_sampler_bio_add(clustered_features, biochemical_annotations_add, Bio, 
 with open("../results/biochemical_annotations_add.pkl", "wb") as f:
     pickle.dump(biochemical_annotations_add, f)
 
+biochemical_annotations_add = pd.read_pickle("../results/biochemical_annotations_add.pkl")
 first_key = list(biochemical_annotations_add.keys())[0]
 print(biochemical_annotations_add[first_key].head())
