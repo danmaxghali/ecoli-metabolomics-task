@@ -8,9 +8,11 @@ import re
 from itertools import combinations
 from tqdm import tqdm
 
+#Get list of KEGG pathways for E. coli
 url = "https://rest.kegg.jp/list/pathway/ec"
 response = requests.get(url)
 
+#Extract pathway IDs from KEGG response
 pathways = [
     line.split()[0].replace("path:", "")
     for line in response.text.strip().split("\n")
@@ -18,112 +20,97 @@ pathways = [
 
 print("Number of pathways:", len(pathways))
 
+
+
+#Extract compounds from KEGG pathway entry
 def extract_compounds_kegg(text):
     compounds = []
     capture = False
 
     for line in text.split("\n"):
+
+        #Start capturing when COMPOUND section begins
         if line.startswith("COMPOUND"):
             capture = True
+
+            #Extract first compound on same line
             match = re.search(r"(C\d{5})", line)
             if match:
                 compounds.append(match.group(1))
             continue
 
+        #Stop capturing when next section begins
         if capture:
             if re.match(r"^[A-Z_]+", line.strip()) and not line.startswith(" "):
                 break
+
+            #Extract KEGG compound IDs
             match = re.search(r"(C\d{5})", line)
             if match:
                 compounds.append(match.group(1))
 
     return compounds
 
+
+
+#Map pathways to compounds
 pathway_to_compounds = {}
 
-# STEP 1: build pathway → compounds
 for pid in tqdm(pathways):
 
+    #Download KEGG pathway entry
     url = f"https://rest.kegg.jp/get/{pid}"
     response = requests.get(url)
 
+    #Extract compounds in pathway
     compounds = extract_compounds_kegg(response.text)
 
+    #Store as set to remove duplicates
     pathway_to_compounds[pid] = set(compounds)
 
+
+
+#Restrict to compounds present in annotation database
 annotation_compounds = set()
+
 for df in ecmdb_annotations.values():
     annotation_compounds.update(df["id"].dropna().unique())
 
 
-# STEP 2: build BIO edges (GLOBAL SET)
+
+#Build biochemical network (edges)
 bio_edges = set()
 
 for pid, compounds in pathway_to_compounds.items():
 
+    #Keep only compounds that exist in annotation space
     compounds = compounds & annotation_compounds
 
+    #Create all pairwise connections within each pathway
     for a, b in combinations(compounds, 2):
         bio_edges.add((a, b))
 
 
-# STEP 3: convert to dataframe (ONLY ONCE)
+
+#Convert edge set to BIO dataframe
 Bio = pd.DataFrame(list(bio_edges), columns=["0", "1"])
 
+#Save for reuse
 Bio.to_csv("../results/bio_connections.csv", index=False)
 
-print(Bio.head())
-print("Total biochemical connections:", len(Bio))
 
+
+# deep copy so original annotations are preserved
 import copy
 biochemical_annotations = copy.deepcopy(ecmdb_annotations)
+
+#Run BIO-aware Gibbs sampler
 ipa.Gibbs_sampler_bio(clustered_features, biochemical_annotations, Bio, noits=2000, delta_bio=0.5)
 
-biochemical_annotations = ecmdb_annotations.copy()
-#Output biochemical_annotations as pickle file
-import pickle
-with open("../results/biochemical_annotations.pkl", "wb") as f:
-    pickle.dump(biochemical_annotations, f)
-
-
-key = list(ecmdb_annotations.keys())[0]
-df_old = ecmdb_annotations[key]
-df_new = biochemical_annotations[key]
-df = df_old[["id", "post"]].merge(
-    df_new[["id", "post"]],
-    on="id",
-    suffixes=("_old", "_bio")
-)
-df["diff"] = df["post_bio"] - df["post_old"]
-print(df.sort_values("diff", ascending=False).head(10))
-
-
-
-# Check if posteriors actually shifted at all
-import numpy as np
-
-changes = []
-for fid in ecmdb_annotations:
-    before = ecmdb_annotations[fid]["post"].values
-    after = biochemical_annotations[fid]["post"].values
-    changes.append(np.mean(np.abs(before - after)))
-
-print(f"Mean posterior shift: {np.mean(changes):.6f}")
-print(f"Max posterior shift: {np.max(changes):.6f}")
-print(f"Features with any change: {sum(c > 1e-6 for c in changes)}/{len(changes)}")
-
-# Are the Bio IDs in the same format as annotation df "id" column?
-sample_fid = next(iter(ecmdb_annotations))
-print(ecmdb_annotations[sample_fid][["id", "post"]].head())
-print("\nSample Bio IDs:", list(Bio["0"])[:5])
-
+#Run Gibbs_sampler_bio_add
 biochemical_annotations_add = copy.deepcopy(biochemical_annotations)
 ipa.Gibbs_sampler_bio_add(clustered_features, biochemical_annotations_add, Bio, noits=2000, delta_bio=0.5, delta_add=0.1)
 
-#Output baseline_annotations as pickle file
+#Output biochemical_annotations_add as pickle file
 with open("../results/biochemical_annotations_add.pkl", "wb") as f:
     pickle.dump(biochemical_annotations_add, f)
-
-biochemical_annotations_add = pd.read_pickle("../results/biochemical_annotations_add.pkl")
-first_key = list(biochemical_annotations_add.keys())[0]
-print(biochemical_annotations_add[first_key].head())
