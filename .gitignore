@@ -8,3 +8,5 @@ __pycache__/
 .Rproj.user
 .positai
 venv*
+.~lock.ecoli metabolomics presentation.odp#
+ecoli metabolomics presentation.odp
